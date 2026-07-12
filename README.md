@@ -24,27 +24,27 @@ An augmented reality sandbox built for the Raspberry Pi using an Intel RealSense
    ```
 
 2. **(Optional) Create a virtual environment.** Keeps project dependencies isolated from the system Python:
-```bash
+   ```bash
    python3 -m venv venv
    source venv/bin/activate
-```
+   ```
    You'll need to run `source venv/bin/activate` again in any new terminal session before running the project. If you skip this step, dependencies install to the system Python instead.
 
 3. **Install the `librealsense` core SDK.** This provides the `librealsense2` shared libraries that the bundled `pyrealsense2` binding depends on at runtime:
-```bash
+   ```bash
    git clone https://github.com/realsenseai/librealsense.git
    cd librealsense
    mkdir build && cd build
    cmake ..
    cmake --build .
    sudo cmake --install .
-```
+   ```
    Follow the official [Raspberry Pi guide](https://dev.realsenseai.com/docs/using-depth-camera-with-raspberry-pi-3) or [Linux guide](https://github.com/realsenseai/librealsense/blob/master/doc/installation.md) for platform-specific dependencies and build flags. This step can take a while on a Pi — the `-j` flag on `cmake --build . -- -j$(nproc)` speeds it up if you have enough RAM/swap.
- 
+
    Verify the install:
-```bash
+   ```bash
    ldconfig -p | grep realsense
-```
+   ```
    This should list `librealsense2.so`. If it returns nothing, the SDK isn't installed or isn't on the linker path yet.
 
 4. **Install the RealSense udev rules.** This is required for the camera to be accessible without root privileges:
@@ -102,9 +102,9 @@ python3 main.py
 
 
 ## Configuration
- 
+
 All tunable parameters live in `config.py`, grouped by section:
- 
+
 - **Depth range** (`MIN_DEPTH_MM`, `MAX_DEPTH_MM`) — the usable depth window in millimetres.
 - **Camera** (`CAMERA_WIDTH`, `CAMERA_HEIGHT`, `CAMERA_FPS`, `PROCESSING_SCALE`) — resolution, frame rate, and the internal processing scale used to keep the Pi responsive.
 - **Software depth filtering** (`MEDIAN_BLUR_SIZE`, `DEPTH_SMOOTHING_ALPHA`) — noise reduction and temporal smoothing applied to the raw depth stream.
@@ -112,10 +112,11 @@ All tunable parameters live in `config.py`, grouped by section:
 - **Contours** — interval spacing (`CONTOUR_INTERVAL_MM`), line thickness (`CONTOUR_LINE_THICKNESS`), and whether base/change contours are shown (`SHOW_BASE_CONTOURS`, `SHOW_CHANGE_CONTOURS`).
 - **Calibration** — number of frames used to establish the baseline, valid depth range for auto sandbox detection, and the height-change threshold considered "significant."
 - **Projector** — output resolution and window position (`PROJECTOR_X`/`PROJECTOR_Y`), and whether to launch on a second screen.
+
 If the projected image is laggy, try lowering `PROCESSING_SCALE`, `CAMERA_FPS`, or `CONTOUR_INTERVAL_MM` (a higher interval value means fewer, faster contour lines).
- 
+
 ## Troubleshooting
- 
+
 - **Camera not detected / permission denied:** Make sure the udev rule is installed (see Installation step 2) and the camera has been unplugged/replugged since.
 - **`ImportError: No module named pyrealsense2`:** The bundled `.so` file only works for Python 3.13 on aarch64 Linux. On any other setup, install `pyrealsense2` via pip instead.
 - **`ImportError`/`undefined symbol` when importing `pyrealsense2` even on the right platform:** The core `librealsense2` SDK (step 3 above) is likely missing or not on the linker path. Run `sudo ldconfig` after installing it, and check with `ldconfig -p | grep realsense`.
