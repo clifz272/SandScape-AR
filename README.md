@@ -104,7 +104,7 @@ scp -r /path/to/your/project pi_username@PI_IP_ADDRESS:/home/pi_username/Desktop
 - This re-copies the whole folder and overwrites any files that changed — safe to re-run every time you have local edits to push.
 - If your folder path has spaces in it, keep the quotes as shown above.
 
-**Applying updates:** after copying, just re-run whatever you were running (`python main.py`, `python test_realsense.py`, etc.). The only exceptions:
+**Applying updates:** after copying, just re-run whatever you were running with the exceptions:
 - If `requirements.txt` changed → re-run `pip install -r requirements.txt`
 - If `system/99-realsense-libusb.rules` changed → re-run the udev install commands from step 4
 - If something's already running when you copy the update → stop it first (`Ctrl+C`, or `Q`/`Esc` in the app window), then restart it
