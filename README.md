@@ -55,20 +55,23 @@ An augmented reality sandbox built for the Raspberry Pi using an Intel RealSense
    ```
    Unplug and replug the camera after this step.
 
-5. **Install the `pyrealsense2` Python bindings.**
-   This repo includes a prebuilt binary for Python 3.13 on aarch64 Linux (`pyrealsense2.cpython-313-aarch64-linux-gnu.so`):
-   ```bash
-   SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])")
-   cp pyrealsense2.cpython-313-aarch64-linux-gnu.so "$SITE_PACKAGES/"
-   ```
-   Verify it's importable:
-   ```bash
+5. **Verify the `pyrealsense2` Python bindings.**
+   This repo includes a prebuilt binary for Python 3.13 on aarch64 Linux (`pyrealsense2.cpython-313-aarch64-linux-gnu.so`), no installation is needed.
+
+   Confirm it's importable:
+```bash
+   cd /path/to/this/project
    python3 -c "import pyrealsense2 as rs; print(rs.__file__)"
-   ```
-   If this fails, your interpreter's ABI tag may not match the prebuilt binary (check with `python3 -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))"` — it should read `.cpython-313-aarch64-linux-gnu.so`). It can also fail if the core SDK from step 3 isn't installed. As a last resort, install `pyrealsense2` normally instead:
-   ```bash
-   pip install pyrealsense2
-   ```
+```
+   If this prints a file path, you're done with this step.
+
+   **If it fails:**
+   - `ModuleNotFoundError` → the filename doesn't match exactly. It must have a **dot** before `cpython`, not an underscore (`pyrealsense2.cpython-...`, not `pyrealsense2_cpython-...`). You can confirm your interpreter's expected ABI tag with:
+```bash
+     python3 -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))"
+```
+     It should read `.cpython-313-aarch64-linux-gnu.so`.
+   - `ImportError` mentioning `librealsense2.so` → the core SDK from step 3 isn't installed, or `ldconfig` wasn't refreshed. Go back to that step.
 
 6. **Install the remaining Python dependencies:**
    ```bash
@@ -80,6 +83,31 @@ An augmented reality sandbox built for the Raspberry Pi using an Intel RealSense
    python3 test_realsense.py
    ```
    This should open two windows showing the live colour and depth feeds. Press `q` to quit.
+
+
+## Uploading Code to the Pi
+
+From your computer, copy the project folder to the Pi over SSH using `scp`. Works from PowerShell, Git Bash, or any terminal with `scp` available.
+
+**Windows (PowerShell or Git Bash):**
+```bash
+scp -r "C:\path\to\your\project" pi_username@PI_IP_ADDRESS:/home/pi_username/Desktop/
+```
+
+**macOS / Linux:**
+```bash
+scp -r /path/to/your/project pi_username@PI_IP_ADDRESS:/home/pi_username/Desktop/
+```
+
+- Find the Pi's IP address by running `hostname -I` on the Pi itself.
+- SSH must be enabled on the Pi first: `sudo raspi-config` → Interface Options → SSH → Enable.
+- This re-copies the whole folder and overwrites any files that changed — safe to re-run every time you have local edits to push.
+- If your folder path has spaces in it, keep the quotes as shown above.
+
+**Applying updates:** after copying, just re-run whatever you were running (`python main.py`, `python test_realsense.py`, etc.). The only exceptions:
+- If `requirements.txt` changed → re-run `pip install -r requirements.txt`
+- If `system/99-realsense-libusb.rules` changed → re-run the udev install commands from step 4
+- If something's already running when you copy the update → stop it first (`Ctrl+C`, or `Q`/`Esc` in the app window), then restart it
 
 ## Usage
 

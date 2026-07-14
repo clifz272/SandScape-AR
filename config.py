@@ -58,7 +58,7 @@ CONTOUR_MIN_AREA = 80
 
 # Contour line thickness in pixels
 # 1 = thinnest, 2 = medium, 3+ = thick
-CONTOUR_LINE_THICKNESS = 2
+CONTOUR_LINE_THICKNESS = 1
 
 # =========================
 # Calibration settings
