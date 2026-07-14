@@ -59,17 +59,17 @@ An augmented reality sandbox built for the Raspberry Pi using an Intel RealSense
    This repo includes a prebuilt binary for Python 3.13 on aarch64 Linux (`pyrealsense2.cpython-313-aarch64-linux-gnu.so`), no installation is needed.
 
    Confirm it's importable:
-```bash
-   cd /path/to/this/project
-   python3 -c "import pyrealsense2 as rs; print(rs.__file__)"
-```
+   ```bash
+      cd /path/to/this/project
+      python3 -c "import pyrealsense2 as rs; print(rs.__file__)"
+   ```
    If this prints a file path, you're done with this step.
 
    **If it fails:**
    - `ModuleNotFoundError` → the filename doesn't match exactly. It must have a **dot** before `cpython`, not an underscore (`pyrealsense2.cpython-...`, not `pyrealsense2_cpython-...`). You can confirm your interpreter's expected ABI tag with:
-```bash
-     python3 -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))"
-```
+   ```bash
+      python3 -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))"
+   ```
      It should read `.cpython-313-aarch64-linux-gnu.so`.
    - `ImportError` mentioning `librealsense2.so` → the core SDK from step 3 isn't installed, or `ldconfig` wasn't refreshed. Go back to that step.
 
@@ -90,14 +90,14 @@ An augmented reality sandbox built for the Raspberry Pi using an Intel RealSense
 From your computer, copy the project folder to the Pi over SSH using `scp`. Works from PowerShell, Git Bash, or any terminal with `scp` available.
 
 **Windows (PowerShell or Git Bash):**
-```bash
-scp -r "C:\path\to\your\project" pi_username@PI_IP_ADDRESS:/home/pi_username/Desktop/
-```
+   ```bash
+   scp -r "C:\path\to\your\project" pi_username@PI_IP_ADDRESS:/home/pi_username/Desktop/
+   ```
 
 **macOS / Linux:**
-```bash
-scp -r /path/to/your/project pi_username@PI_IP_ADDRESS:/home/pi_username/Desktop/
-```
+   ```bash
+   scp -r /path/to/your/project pi_username@PI_IP_ADDRESS:/home/pi_username/Desktop/
+   ```
 
 - Find the Pi's IP address by running `hostname -I` on the Pi itself.
 - SSH must be enabled on the Pi first: `sudo raspi-config` → Interface Options → SSH → Enable.
@@ -113,9 +113,9 @@ scp -r /path/to/your/project pi_username@PI_IP_ADDRESS:/home/pi_username/Desktop
 
 Run the main application:
 
-```bash
-python3 main.py
-```
+   ```bash
+   python3 main.py
+   ```
 
 - On startup, the sandbox is calibrated: keep the sand still and empty while the camera captures frames.
 - A preview window appears — either drag a box around the sandbox area and press **Enter/Space**, or press **C** to fall back to automatic detection.
