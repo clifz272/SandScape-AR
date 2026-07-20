@@ -2,18 +2,87 @@
 
 An augmented reality sandbox built for the Raspberry Pi using an Intel RealSense D435 / D435i depth camera. The system scans the sand, calibrates a baseline, and projects a live, colour-coded topography map (with contour lines and water effects) directly onto the sand as it is shaped.
 
+## System Overview
+
+The system operates as a continuous feedback loop:
+
+```mermaid
+flowchart LR
+    A[Physical Sand Surface] -->|Elevation changes| B[Intel RealSense D435i]
+    B -->|USB 3.0 depth data| C[Raspberry Pi 4]
+    C -->|Processed elevation map through HDMI| D[Short-Throw Projector]
+    D -->|Projected colours and contours| A
+```
+
+The RealSense camera measures the sand height. The Raspberry Pi processes the depth data and generates the elevation colours and contour lines. The projector then displays the processed image back onto the sand.
+
+---
+
 ## Hardware Requirements
 
-- Intel RealSense D435 or D435i depth camera
-- Raspberry Pi (or other Linux machine) with a free USB 3.0 port
-- Projector, mounted above the sandbox and aligned to the sand surface
-- A sandbox filled with sand
+- Raspberry Pi 4
+- Raspberry Pi case with cooling fan
+- MicroSD card with Raspberry Pi OS
+- Intel RealSense D435i
+- USB 3.0 data cable
+- Short-throw projector
+- Micro-HDMI-to-HDMI cable or adapter
+- Compatible Raspberry Pi USB-C power supply 
+- Power strip 
 
 ## Software Requirements
 
 - Python 3.13 (aarch64 / Linux — a prebuilt `pyrealsense2` binary for this exact platform is included)
 - OpenCV and NumPy (see `requirements.txt`)
 - `librealsense` core SDK installed on the system (not included in this repo) — see [realsenseai/librealsense](https://github.com/realsenseai/librealsense)
+
+### Connection diagram
+
+```text
+Intel RealSense D435i
+        │
+        │ USB 3.0
+        ▼
+  Raspberry Pi 4
+        │
+        │ Micro-HDMI to HDMI
+        ▼
+Short-Throw Projector
+        │
+        │ Projected elevation map
+        ▼
+    Sand Surface
+
+
+Wall Outlet
+     │
+     ▼
+ Power Strip
+   ├── Raspberry Pi power supply
+   └── Projector power cable
+```
+
+---
+
+## Initial Alignment
+
+Position the projector so that the image fully covers the sandbox, then adjust the RealSense camera until the entire sand surface is centred in the depth preview. Ensure both devices are parallel to the sandbox and tighten all mounts securely. Recalibration may be required if the camera, projector or sandbox is moved.
+
+---
+
+## Recommended Start-Up Procedure
+
+1. Place the frame on a stable and level table.
+2. Confirm that all brackets and mounting screws are tight.
+3. Insert the sandbox into its bracket and T-slot restraints.
+4. Connect the RealSense camera to a USB 3.0 port.
+5. Connect the Raspberry Pi to the projector through HDMI.
+6. Connect the Raspberry Pi and projector to the power strip.
+7. Switch on the projector and select the HDMI input.
+8. Power on the Raspberry Pi.
+9. Allow the Raspberry Pi to finish booting.
+10. Keep the sandbox surface clear and stable before calibration.
+11. Start the AR sandbox program.
 
 ## Installation
 
