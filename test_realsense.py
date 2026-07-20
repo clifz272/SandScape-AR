@@ -3,12 +3,13 @@
 import cv2
 import numpy as np
 import pyrealsense2 as rs
+from config import CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS
 
 pipeline = rs.pipeline()
 config = rs.config()
 
-config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+config.enable_stream(rs.stream.depth, CAMERA_WIDTH, CAMERA_HEIGHT, rs.format.z16, CAMERA_FPS)
+config.enable_stream(rs.stream.color, CAMERA_WIDTH, CAMERA_HEIGHT, rs.format.bgr8, CAMERA_FPS)
 
 pipeline.start(config)
 

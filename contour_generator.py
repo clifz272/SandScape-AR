@@ -5,6 +5,7 @@ import numpy as np
 
 from config import (
     CONTOUR_INTERVAL_MM,
+    CONTOUR_MIN_INTERVAL_MM,
     BASE_CONTOUR_INTERVAL_MM,
     BASE_CONTOUR_OFFSET_MM,
     CONTOUR_MIN_AREA,
@@ -12,22 +13,27 @@ from config import (
 )
 
 
-def generate_contour_overlay_from_height_change(height_map_8bit, output_shape):
+def generate_contour_overlay_from_height_change(height_map_mm, output_shape):
     """
-    Very fast synced topography lines for Raspberry Pi.
+    Fast synced topography lines for Raspberry Pi.
 
-    This expects the same 0-255 height map used for the terrain colour.
-    Because main.py passes smoothed_depth into this function, the lines
-    stay synced with the map.
+    Bands are computed directly on real millimetre height values, not
+    on the 0-255 colour-mapped scale — so contour line spacing always
+    reflects true physical sand height, independent of how the colour
+    gradient (MIN_WATER_HEIGHT_MM/MAX_LAND_HEIGHT_MM) is tuned.
+
+    height_map_mm should be the smoothed, real-mm height-change array
+    (float), the same one used to derive the colour map, but *before*
+    it's converted to the 0-255 visual_height scale.
     """
 
     h, w = output_shape[:2]
     contour_overlay = np.zeros((h, w, 3), dtype=np.uint8)
 
-    if height_map_8bit is None:
+    if height_map_mm is None:
         return contour_overlay
 
-    height_map = np.nan_to_num(height_map_8bit).astype(np.uint8)
+    height_map = np.nan_to_num(height_map_mm).astype(np.float32)
 
     if height_map.shape[:2] != (h, w):
         height_map = cv2.resize(
@@ -36,12 +42,10 @@ def generate_contour_overlay_from_height_change(height_map_8bit, output_shape):
             interpolation=cv2.INTER_LINEAR
         )
 
-    # Use height bands instead of cv2.findContours.
-    # This is much faster on Raspberry Pi.
-    interval = max(12, int(CONTOUR_INTERVAL_MM))
-    bands = (height_map // interval).astype(np.uint8)
+    interval = max(CONTOUR_MIN_INTERVAL_MM, CONTOUR_INTERVAL_MM)
+    bands = np.floor(height_map / interval)
 
-    line_mask = np.zeros_like(height_map, dtype=np.uint8)
+    line_mask = np.zeros(height_map.shape, dtype=np.uint8)
 
     # Detect where neighbouring pixels move into a different height band
     line_mask[:, 1:] |= (bands[:, 1:] != bands[:, :-1]).astype(np.uint8) * 255

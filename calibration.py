@@ -27,10 +27,9 @@ class SandboxCalibrator:
         print("Please keep the sandbox empty and do not move the sand.")
 
         depth_frames = []
-        color_frame = None
 
         for i in range(CALIBRATION_FRAMES):
-            color_frame, depth_mm, height_map = camera.get_depth_frame()
+            _, depth_mm, height_map = camera.get_depth_frame()
             depth_frames.append(depth_mm)
 
             preview = height_map.copy()

@@ -8,6 +8,7 @@ from calibration import SandboxCalibrator
 
 from terrain_processing import (
     smooth_depth_map,
+    despeckle,
     create_height_colormap
 )
 
@@ -30,7 +31,14 @@ from config import (
     SHOW_BASE_CONTOURS,
     SHOW_CHANGE_CONTOURS,
     PROJECTOR_ON_SECOND_SCREEN,
-    PROCESSING_SCALE
+    PROCESSING_SCALE,
+    MIN_WATER_HEIGHT_MM,
+    MAX_LAND_HEIGHT_MM,
+    LAND_COLOR_HEIGHT_FRACTIONS,
+    LAND_COLOR_VALUES,
+    DESPECKLE_ENABLED,
+    DESPECKLE_BLUR_SIZE,
+    DESPECKLE_THRESHOLD_MM
 )
 
 
@@ -86,6 +94,16 @@ def main():
     stable_height_change = None
     frame_count = 0
 
+    # Precompute the real-mm breakpoints for the non-linear land colour
+    # curve once, rather than every frame — LAND_COLOR_HEIGHT_FRACTIONS
+    # are fractions of MAX_LAND_HEIGHT_MM.
+    land_color_mm_points = [f * MAX_LAND_HEIGHT_MM for f in LAND_COLOR_HEIGHT_FRACTIONS]
+
+    # The water side ends exactly where the land side starts
+    # (LAND_COLOR_VALUES[0]) so there's no colour seam right at the
+    # calibrated baseline (0mm).
+    water_color_end_value = LAND_COLOR_VALUES[0]
+
     try:
         calibrator.calibrate(camera)
 
@@ -96,7 +114,7 @@ def main():
         control_panel = create_control_panel()
 
         while True:
-            original_frame, depth_mm, height_map = camera.get_depth_frame()
+            original_frame, depth_mm, _ = camera.get_depth_frame()
 
             # Crop to selected sandbox area
             sandbox_depth_mm = calibrator.crop_to_sandbox(depth_mm)
@@ -142,8 +160,14 @@ def main():
             # Remove tiny flicker around calibrated base level
             height_change_mm[np.abs(height_change_mm) < 5] = 0
 
-            # Remove extreme sensor noise
-            height_change_mm = np.clip(height_change_mm, -60, 80)
+            # Remove extreme sensor noise, and clip to the configured
+            # usable height range (see MIN_WATER_HEIGHT_MM /
+            # MAX_LAND_HEIGHT_MM in config.py).
+            height_change_mm = np.clip(
+                height_change_mm,
+                MIN_WATER_HEIGHT_MM,
+                MAX_LAND_HEIGHT_MM
+            )
             
             # =========================
             # Raspberry Pi performance:
@@ -168,20 +192,41 @@ def main():
                 )
 
             # =========================
+            # Despeckle
+            # =========================
+            # Removes isolated noisy pixels ("weird shapes") by
+            # comparing each pixel to a local blurred average and
+            # replacing outliers with it. Runs on real-mm data, before
+            # both the colour map and contour lines are derived from
+            # it, so both benefit from the cleanup.
+            if DESPECKLE_ENABLED:
+                height_change_mm = despeckle(
+                    height_change_mm,
+                    blur_size=DESPECKLE_BLUR_SIZE,
+                    threshold=DESPECKLE_THRESHOLD_MM
+                )
+
+            # Smoothed real-mm height, used for contour line spacing.
+            # Kept separate from the 0-255 colour map below so contour
+            # density always reflects true physical millimetres,
+            # regardless of how the colour range is tuned.
+            smoothed_height_mm = smooth_depth_map(height_change_mm)
+
+            # =========================
             # Better height-to-colour mapping
             # =========================
             # Negative = dug down / water
             # 0 mm = normal calibrated sand level / grass
             # Positive = raised terrain / mountain
+            #
+            # The land side (positive) uses a non-linear curve
+            # (LAND_COLOR_HEIGHT_FRACTIONS/VALUES in config.py) so most
+            # of the height range stays grass/hill-coloured, and only
+            # the tallest points reach mountain colours. The water side
+            # ends at the same colour value the land side starts at, so
+            # there's no seam right at the baseline.
 
-            MIN_WATER_HEIGHT_MM = -60
-            MAX_LAND_HEIGHT_MM = 80
-
-            height_for_colour = np.clip(
-                height_change_mm,
-                MIN_WATER_HEIGHT_MM,
-                MAX_LAND_HEIGHT_MM
-            )
+            height_for_colour = height_change_mm
 
             visual_height = np.zeros_like(height_for_colour, dtype=np.uint8)
 
@@ -191,16 +236,18 @@ def main():
             visual_height[negative_mask] = np.interp(
                 height_for_colour[negative_mask],
                 [MIN_WATER_HEIGHT_MM, 0],
-                [20, 115]
+                [20, water_color_end_value]
             ).astype(np.uint8)
 
-            # Baseline and raised terrain become grass/hill/mountain
+            # Baseline and raised terrain become grass/hill/mountain,
+            # using the non-linear curve so height climbs into mountain
+            # colours much more gradually.
             positive_mask = height_for_colour >= 0
 
             visual_height[positive_mask] = np.interp(
                 height_for_colour[positive_mask],
-                [0, MAX_LAND_HEIGHT_MM],
-                [125, 240]
+                land_color_mm_points,
+                LAND_COLOR_VALUES
             ).astype(np.uint8)
 
             # =========================
@@ -224,15 +271,14 @@ def main():
             # =========================
             # Synced topography lines
             # =========================
-            # Important:
-            # Use smoothed_depth, not height_change_mm.
-            # This makes contour lines follow the colour map exactly.
-            # Also generate every frame because this contour method is lightweight.
+            # Uses smoothed_height_mm (real millimetres), not the 0-255
+            # colour map, so contour spacing reflects true physical sand
+            # height regardless of the colour range in config.py.
             frame_count += 1
 
             if SHOW_CHANGE_CONTOURS:
                 contour_overlay = generate_contour_overlay_from_height_change(
-                    smoothed_depth,
+                    smoothed_height_mm,
                     final_output.shape
                 )
 

@@ -20,7 +20,8 @@ An augmented reality sandbox built for the Raspberry Pi using an Intel RealSense
 1. **Install system dependencies** (Raspberry Pi OS / Debian-based):
    ```bash
    sudo apt update
-   sudo apt install python3-pip libusb-1.0-0-dev
+   sudo apt install python3-pip git cmake build-essential libssl-dev \
+       libusb-1.0-0-dev libudev-dev pkg-config libgtk-3-dev
    ```
 
 2. **(Optional) Create a virtual environment.** Keeps project dependencies isolated from the system Python:
@@ -35,11 +36,12 @@ An augmented reality sandbox built for the Raspberry Pi using an Intel RealSense
    git clone https://github.com/realsenseai/librealsense.git
    cd librealsense
    mkdir build && cd build
-   cmake ..
-   cmake --build .
-   sudo cmake --install .
+   cmake .. -DBUILD_PYTHON_BINDINGS=false -DCMAKE_BUILD_TYPE=Release
+   make -j$(nproc)
+   sudo make install
+   sudo ldconfig
    ```
-   Follow the official [Raspberry Pi guide](https://dev.realsenseai.com/docs/using-depth-camera-with-raspberry-pi-3) or [Linux guide](https://github.com/realsenseai/librealsense/blob/master/doc/installation.md) for platform-specific dependencies and build flags. This step can take a while on a Pi — the `-j` flag on `cmake --build . -- -j$(nproc)` speeds it up if you have enough RAM/swap.
+   Follow the official [Raspberry Pi guide](https://dev.realsenseai.com/docs/using-depth-camera-with-raspberry-pi-3) or [Linux guide](https://github.com/realsenseai/librealsense/blob/master/doc/installation.md) for platform-specific dependencies and build flags. This step can take a while on a Pi — the -j$(nproc) flag above speeds it up if you have enough RAM/swap. Consider also running it inside tmux or screen so an SSH/VNC disconnect doesn't kill the build partway through.
 
    Verify the install:
    ```bash
@@ -49,7 +51,7 @@ An augmented reality sandbox built for the Raspberry Pi using an Intel RealSense
 
 4. **Install the RealSense udev rules.** This is required for the camera to be accessible without root privileges:
    ```bash
-   sudo cp 99-realsense-libusb.rules /etc/udev/rules.d/
+   sudo cp system/99-realsense-libusb.rules /etc/udev/rules.d/
    sudo udevadm control --reload-rules
    sudo udevadm trigger
    ```
@@ -66,17 +68,13 @@ An augmented reality sandbox built for the Raspberry Pi using an Intel RealSense
    If this prints a file path, you're done with this step.
 
    **If it fails:**
-   - `ModuleNotFoundError` → the filename doesn't match exactly. It must have a **dot** before `cpython`, not an underscore (`pyrealsense2.cpython-...`, not `pyrealsense2_cpython-...`). You can confirm your interpreter's expected ABI tag with:
-   ```bash
-   python3 -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))"
-   ```
-     It should read `.cpython-313-aarch64-linux-gnu.so`.
    - `ImportError` mentioning `librealsense2.so` → the core SDK from step 3 isn't installed, or `ldconfig` wasn't refreshed. Go back to that step.
 
 6. **Install the remaining Python dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
+   Add `--break-system-packages` if you skipped the virtual environment in step 2 and hit an `externally-managed-environment` error.
 
 7. **Verify the camera is working:**
    ```bash
@@ -136,17 +134,18 @@ All tunable parameters live in `config.py`, grouped by section:
 - **Depth range** (`MIN_DEPTH_MM`, `MAX_DEPTH_MM`) — the usable depth window in millimetres.
 - **Camera** (`CAMERA_WIDTH`, `CAMERA_HEIGHT`, `CAMERA_FPS`, `PROCESSING_SCALE`) — resolution, frame rate, and the internal processing scale used to keep the Pi responsive.
 - **Software depth filtering** (`MEDIAN_BLUR_SIZE`, `DEPTH_SMOOTHING_ALPHA`) — noise reduction and temporal smoothing applied to the raw depth stream.
+- **Despeckle filter** (`DESPECKLE_ENABLED`, `DESPECKLE_BLUR_SIZE`, `DESPECKLE_THRESHOLD_MM`) — removes isolated noisy pixels by replacing outliers with their local average, run on real-mm height data before colour/contour generation.
 - **Terrain smoothing** — `BLUR_SIZE` for the displayed height map, plus adaptive smoothing (`HEIGHT_SMOOTHING_STILL_WEIGHT`, `HEIGHT_SMOOTHING_MOVING_WEIGHT`, `MOTION_THRESHOLD_MM`) that reacts differently depending on whether the sand is being actively moved.
-- **Contours** — interval spacing (`CONTOUR_INTERVAL_MM`), line thickness (`CONTOUR_LINE_THICKNESS`), and whether base/change contours are shown (`SHOW_BASE_CONTOURS`, `SHOW_CHANGE_CONTOURS`).
+- **Height-to-colour range** (`MIN_WATER_HEIGHT_MM`, `MAX_LAND_HEIGHT_MM`) — how far the sand can be dug/mounded from baseline, matched to your sandbox's real usable depth. `LAND_COLOR_HEIGHT_FRACTIONS`/`LAND_COLOR_VALUES` control the non-linear grass-to-mountain colour curve on the land side.
+- **Contours** — spacing in real mm (`CONTOUR_INTERVAL_MM`, `CONTOUR_MIN_INTERVAL_MM`), line thickness (`CONTOUR_LINE_THICKNESS`), and whether base/change contours are shown (`SHOW_BASE_CONTOURS`, `SHOW_CHANGE_CONTOURS`).
 - **Calibration** — number of frames used to establish the baseline, valid depth range for auto sandbox detection, and the height-change threshold considered "significant."
-- **Projector** — output resolution and window position (`PROJECTOR_X`/`PROJECTOR_Y`), and whether to launch on a second screen.
+- **Projector** — output resolution and window position (`PROJECTOR_X`/`PROJECTOR_Y`), plus physical size calibration (`PROJECTOR_MEASURED_FULL_WIDTH_CM`/`HEIGHT_CM`, `PROJECTOR_CONTENT_WIDTH_CM`/`HEIGHT_CM`, `PROJECTOR_CONTENT_OFFSET_TOP_CM`/`LEFT_CM`) for projecting at an exact physical size and position.
 
 If the projected image is laggy, try lowering `PROCESSING_SCALE`, `CAMERA_FPS`, or `CONTOUR_INTERVAL_MM` (a higher interval value means fewer, faster contour lines).
 
 ## Troubleshooting
 
-- **Camera not detected / permission denied:** Make sure the udev rule is installed (see Installation step 2) and the camera has been unplugged/replugged since.
-- **`ImportError: No module named pyrealsense2`:** The bundled `.so` file only works for Python 3.13 on aarch64 Linux. On any other setup, install `pyrealsense2` via pip instead.
+- **Camera not detected / permission denied:** Make sure the udev rule is installed (see Installation step 4) and the camera has been unplugged/replugged since.
 - **`ImportError`/`undefined symbol` when importing `pyrealsense2` even on the right platform:** The core `librealsense2` SDK (step 3 above) is likely missing or not on the linker path. Run `sudo ldconfig` after installing it, and check with `ldconfig -p | grep realsense`.
-- **Noisy or flickering depth image:** Increase `DEPTH_SMOOTHING_ALPHA` or `MEDIAN_BLUR_SIZE` in `config.py`.
+- **Noisy or flickering depth image:** Increase `DEPTH_SMOOTHING_ALPHA` or `MEDIAN_BLUR_SIZE` in `config.py`, or lower `DESPECKLE_THRESHOLD_MM` for more aggressive cleanup.
 - **Projector output on the wrong screen:** Adjust `PROJECTOR_X`/`PROJECTOR_Y` and set `PROJECTOR_ON_SECOND_SCREEN = True` in `config.py`.
