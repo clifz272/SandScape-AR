@@ -18,7 +18,7 @@ def generate_contour_overlay_from_height_change(height_map_mm, output_shape):
     Fast synced topography lines for Raspberry Pi.
 
     Bands are computed directly on real millimetre height values, not
-    on the 0-255 colour-mapped scale — so contour line spacing always
+    on the 0-255 colour-mapped scale, so contour line spacing always
     reflects true physical sand height, independent of how the colour
     gradient (MIN_WATER_HEIGHT_MM/MAX_LAND_HEIGHT_MM) is tuned.
 
